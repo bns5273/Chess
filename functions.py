@@ -1,7 +1,9 @@
 import math
 import re
-import pprint
 import numpy as np
+import torch
+import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
 
 
 def get_result(h):
@@ -22,22 +24,6 @@ def winning_chances(centipawns):
     return 2 / (1 + math.exp(-0.004 * centipawns)) - 1
 
 
-# this converts an integer to a bit array for qualitative tensors
-# pretty fast
-def to_bin_array(p, w, b):
-    # convert integers to length 64 strings. mask pieces by team
-    w = bin(w & p)[2:]
-    w = '0' * (64 - len(w)) + w
-    b = bin(b & p)[2:]
-    b = '0' * (64 - len(b)) + b
-
-    # conjoin. white + black -
-    out = []
-    for white, black, in zip(w, b):
-        out.append(int(white) - int(black))
-    return out
-
-
 # creates an input tensor
 def get_x(node):
     board = node.board()
@@ -48,13 +34,28 @@ def get_x(node):
     fullmove = board.fullmove_number
     white, black = board.occupied_co
 
-    out = [to_bin_array(board.pawns, white, black),
-           to_bin_array(board.knights, white, black),
-           to_bin_array(board.bishops, white, black),
-           to_bin_array(board.rooks, white, black),
-           to_bin_array(board.queens, white, black),
-           to_bin_array(board.kings, white, black)]
-
-    # print(out[0])
-
-    return out
+    board_vars = vars(board)
+    pieces = ['pawns', 'knights', 'bishops', 'rooks', 'queens', 'kings']
+    coordinates = [[], []]
+    piece_colors = []
+    for piece_counter in range(6):
+        piece_value = board_vars[pieces[piece_counter]]             # integer
+        square_counter = 0
+        piece_locations = []
+        bit_mask = 1
+        while bit_mask < piece_value:
+            if piece_value & bit_mask > 0:
+                piece_locations.append(square_counter)
+                if (piece_value & white & bit_mask) > 0:            # white's piece?
+                    piece_colors.append(1)                                # white
+                else:
+                    piece_colors.append(-1)                               # black
+            square_counter += 1
+            bit_mask = bit_mask << 1
+        coordinates[0] += [piece_counter]*len(piece_locations)      # row
+        coordinates[1] += piece_locations                           # column
+    # print(coordinates)
+    # print(piece_colors)
+    i = torch.LongTensor(coordinates)
+    v = torch.FloatTensor(piece_colors)
+    return torch.sparse.FloatTensor(i, v, torch.Size([6, 64])).to_dense()
