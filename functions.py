@@ -1,9 +1,13 @@
 import math
 import re
 import numpy as np
+from scipy import stats
 import torch
 import torch.nn as nn
+import chess.pgn as pgn
 from torch.utils.data import Dataset, DataLoader
+from joblib import load
+from sklearn import tree
 
 
 def get_result(h):
@@ -15,13 +19,11 @@ def get_result(h):
         return 0
 
 
-def winning_chances(centipawns):
-    """
-    Takes an evaluation in centipawns and returns an integer value estimating
-    the chance the player to move will win the game
-    winning chances = 50 + 50 * (2 / (1 + e^(-0.004 * centipawns)) - 1)
-    """
-    return 2 / (1 + math.exp(-0.004 * centipawns)) - 1
+# converts centipawns to [loss, draw, win] probabilities
+def get_y(centipawns, turn):
+    clf = load('sources/clf_model.joblib')
+    y = clf.predict_proba([[centipawns, turn]])
+    return torch.FloatTensor(y[0])
 
 
 # creates an input tensor
@@ -59,3 +61,35 @@ def get_x(node):
     i = torch.LongTensor(coordinates)
     v = torch.FloatTensor(piece_colors)
     return torch.sparse.FloatTensor(i, v, torch.Size([6, 64])).to_dense()
+
+
+def fen_generator(filename):
+    with open(filename, 'r', encoding='Latin-1') as file:
+        position = 0
+        game = 0
+        for i in range(10):
+            move = 1
+            old_node = pgn.read_game(file)
+            result = get_result(old_node.headers)
+            while not old_node.is_end():
+                node = old_node.variations[0]
+                # only white to move positions. some engines (as black) evaluate from perspective!
+                if move % 1 == 0:  # and -3 < eval < 3:
+                    eval = re.findall('[-+]\d*\.\d*', node.comment)
+                    if eval:
+                        eval = get_y(float(eval[0]), move)
+                        yield game, move, get_x(node), eval
+                        position += 1
+                    elif re.findall('[-]', node.comment):
+                        eval = [1, 0, 0]
+                        yield game, move, get_x(node), eval
+                        position += 1
+                    elif re.findall('[+]', node.comment):
+                        eval = [0, 0, 1]
+                        yield game, move, get_x(node), eval
+                        position += 1
+                old_node = node
+                move += .5
+            game += 1
+
+        print(game, 'games', position, 'positions')
