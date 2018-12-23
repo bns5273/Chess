@@ -1,13 +1,7 @@
-import math
 import re
-import numpy as np
-from scipy import stats
 import torch
-import torch.nn as nn
 import chess.pgn as pgn
-from torch.utils.data import Dataset, DataLoader
 from joblib import load
-from sklearn import tree
 
 
 def get_result(h):
@@ -63,11 +57,13 @@ def get_x(node):
     return torch.sparse.FloatTensor(i, v, torch.Size([6, 64])).to_dense()
 
 
-def fen_generator(filename):
+# game #, move #, x (node), y0 (eval), y1 (result)
+# [loss, draw, win]
+def fen_generator(filename, limit):
     with open(filename, 'r', encoding='Latin-1') as file:
         position = 0
         game = 0
-        for i in range(10):
+        for i in range(limit):
             move = 1
             old_node = pgn.read_game(file)
             result = get_result(old_node.headers)
@@ -78,15 +74,15 @@ def fen_generator(filename):
                     eval = re.findall('[-+]\d*\.\d*', node.comment)
                     if eval:
                         eval = get_y(float(eval[0]), move)
-                        yield game, move, get_x(node), eval
+                        yield game, move, get_x(node), eval, result
                         position += 1
                     elif re.findall('[-]', node.comment):
                         eval = [1, 0, 0]
-                        yield game, move, get_x(node), eval
+                        yield game, move, get_x(node), eval, result
                         position += 1
                     elif re.findall('[+]', node.comment):
                         eval = [0, 0, 1]
-                        yield game, move, get_x(node), eval
+                        yield game, move, get_x(node), eval, result
                         position += 1
                 old_node = node
                 move += .5

@@ -6,17 +6,19 @@ dimensionality reduction. LSI?
 batching
 automated rating estimation using stockfish binary?
 
-instead of fitting to engine evaluations:
+ideas:
+    fit to engine evaluations
     value of material
-    value of material by square
+    value of material by square, turn, in-play pieces
     guess the turn # from fen
+    personalized training tool
 """
 
 from functions import *
-from numpy import mean, corrcoef
-import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
+from numpy import corrcoef
+import matplotlib.pyplot as plt
 
 
 # class for reshaping within sequential net
@@ -49,16 +51,19 @@ if __name__ == '__main__':
 
     predictions = []
     labels = []
-    for game, move, x, y in fen_generator('sources/ccrl.pgn'):
+    losses = []
+    for game, move, x, y0, y1 in fen_generator('sources/ccrl.pgn', 1000):
         y_pred = net(x)
-        loss = loss_fn(y_pred, y)
+        loss = loss_fn(y_pred, y0)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-        # predictions.append(y_pred.item())
-        # labels.append(y.item())
+        # print(loss.item())
+        losses.append(loss.item())
 
-        # if game != 0 and game % 1 == 0 and move == 20:
-        if move == 20:
-            print(y)
+        # if move == 15:
+        #     print(game, y_pred.data[2], y0.data[2])
+        if len(losses) % 500 == 0:
+            plt.plot(range(len(losses)), losses)
+            plt.show()
