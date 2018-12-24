@@ -25,11 +25,14 @@ if __name__ == '__main__':
 	net = nn.Sequential(
 		nn.BatchNorm1d(12),
 		Reshape(-1, 768),
-		nn.Linear(768, 7680),
+		nn.Linear(768, 768),
 		nn.ReLU(),
-		nn.Linear(7680, 3),
+		nn.Linear(768, 3),
 		nn.Softmax(dim=0)
-	).cuda()
+	)
+
+	if torch.cuda.is_available():
+		net = net.cuda()
 
 	loss_fn = nn.MSELoss()
 	optimizer = torch.optim.Adam(net.parameters(), lr=0.0001)
@@ -37,9 +40,11 @@ if __name__ == '__main__':
 	predictions = []
 	labels = []
 	losses = []
-	for game, x0, x1, y0, y1 in fen_generator('sources/ccrl.pgn', 1000):
+
+	# game number, board tensor, evaluation float array, normalized evaluation, result
+	for game, x, y0, y1 in fen_generator('sources/ccrl.pgn', 1000):
 		# training
-		y_pred = net(x1)
+		y_pred = net(x)
 		loss = loss_fn(y_pred, y0)
 		optimizer.zero_grad()
 		loss.backward()

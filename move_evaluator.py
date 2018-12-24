@@ -17,3 +17,10 @@ import numpy as np
 if __name__ == '__main__':
 	open = [.346, .257, .397]   # from CCRL
 
+	for game, x, y0, y1 in fen_generator('sources/ccrl.pgn', 10):
+		gy = []
+
+		for i in list(y0.data):
+			gy.append(tuple(i))
+		plt.plot(range(len(y0)), gy)
+		plt.show()

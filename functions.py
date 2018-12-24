@@ -8,11 +8,16 @@ from eval_norm import EvalNorm
 
 def get_result(h):
 	if h['Result'] == '1-0':
-		return torch.cuda.FloatTensor([0, 0, 1])
+		out = [0, 0, 1]
 	elif h['Result'] == '0-1':
-		return torch.cuda.FloatTensor([1, 0, 0])
+		out = [1, 0, 0]
 	else:
-		return torch.cuda.FloatTensor([0, 1, 0])
+		out = [0, 1, 0]
+
+	if torch.cuda.is_available():
+		return torch.cuda.FloatTensor(out)
+	else:
+		return torch.FloatTensor(out)
 
 
 # creates an input tensor
@@ -41,9 +46,14 @@ def get_x(node):
 				team_pieces.append(team_piece)
 			bit_mask = bit_mask << 1
 
-	i = torch.cuda.LongTensor([team_pieces, rank_files])
-	v = torch.cuda.FloatTensor(np.ones(len(rank_files)))
-	return torch.cuda.sparse.FloatTensor(i, v, torch.Size([12, 64])).to_dense()
+	if torch.cuda.is_available():
+		i = torch.cuda.LongTensor([team_pieces, rank_files])
+		v = torch.cuda.FloatTensor(np.ones(len(rank_files)))
+		return torch.cuda.sparse.FloatTensor(i, v, torch.Size([12, 64])).to_dense()
+	else:
+		i = torch.LongTensor([team_pieces, rank_files])
+		v = torch.FloatTensor(np.ones(len(rank_files)))
+		return torch.sparse.FloatTensor(i, v, torch.Size([12, 64])).to_dense()
 
 
 # game #, move #, x (node), y0 (eval), y1 (result)
@@ -67,21 +77,22 @@ def fen_generator(filename, limit):
 					eval = re.findall('[-+]\d*\.\d*', node.comment)
 					if eval:
 						xs.append(get_x(node))
-						ys.append(get_y(float(eval[0]), move))
+						ys.append(get_y(float(eval[0])))
 						position += 1
 					elif re.findall('[-]', node.comment):
 						xs.append(get_x(node))
-						eval
-						ys.append(torch.FloatTensor([1, 0, 0]))
+						eval = torch.FloatTensor([1, 0, 0])
+						ys.append(eval)
 						position += 1
 					elif re.findall('[+]', node.comment):
 						xs.append(get_x(node))
-						ys.append(torch.FloatTensor([1, 0, 0]))
+						eval = torch.FloatTensor([0, 0, 1])
+						ys.append(eval)
 						position += 1
 				old_node = node
 				move += .5
 			game += 1
-			yield game, torch.stack(xs).cuda(), torch.stack(ys).cuda(), result
+			yield game, torch.stack(xs), torch.stack(ys), result
 
 		print(game, 'games', position, 'positions')
 
