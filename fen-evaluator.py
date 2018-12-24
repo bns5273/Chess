@@ -1,69 +1,60 @@
-"""
-TODO:
-black as negative will not work! at least for pawns
-add result of matches as target
-dimensionality reduction. LSI?
-batching
-automated rating estimation using stockfish binary?
-
-ideas:
-    fit to engine evaluations
-    value of material
-    value of material by square, turn, in-play pieces
-    guess the turn # from fen
-    personalized training tool
-"""
 
 from functions import *
 import torch
 import torch.nn as nn
-from numpy import corrcoef
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 # class for reshaping within sequential net
 class Reshape(nn.Module):
-    def __init__(self, *shape):
-        super(Reshape, self).__init__()
-        self.shape = shape
+	def __init__(self, *shape):
+		super(Reshape, self).__init__()
+		self.shape = shape
 
-    def forward(self, input):
-        return input.view(self.shape)
+	def forward(self, input):
+		return input.view(self.shape)
 
 
 if __name__ == '__main__':
+	torch.set_printoptions(threshold=10000, linewidth=1000, precision=4)
 
-    # stockfish = chess.uci.popen_engine('/usr/bin/stockfish')
-    # stockfish.uci()
+	# stockfish = chess.uci.popen_engine('/usr/bin/stockfish')
+	# stockfish.uci()
 
-    net = nn.Sequential(
-        Reshape(-1),
-        nn.Linear(384, 384),
-        nn.ReLU(),
-        nn.Linear(384, 384),
-        nn.ReLU(),
-        nn.Linear(384, 3),
-        nn.Softmax(dim=0)
-    )
+	net = nn.Sequential(
+		nn.BatchNorm1d(12),
+		Reshape(-1, 768),
+		nn.Linear(768, 7680),
+		nn.ReLU(),
+		nn.Linear(7680, 3),
+		nn.Softmax(dim=0)
+	).cuda()
 
-    loss_fn = nn.MSELoss()
-    optimizer = torch.optim.Adam(net.parameters())
+	loss_fn = nn.MSELoss()
+	optimizer = torch.optim.Adam(net.parameters(), lr=0.0001)
 
-    predictions = []
-    labels = []
-    losses = []
-    for game, move, x, y0, y1 in fen_generator('sources/ccrl.pgn', 1000):
-        y_pred = net(x)
-        loss = loss_fn(y_pred, y0)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+	predictions = []
+	labels = []
+	losses = []
+	for game, x, y0, y1 in fen_generator('sources/ccrl.pgn', 1000):
+		# training
+		y_pred = net(x)
+		loss = loss_fn(y_pred, y0)
+		optimizer.zero_grad()
+		loss.backward()
+		optimizer.step()
 
-        # print(loss.item())
-        losses.append(loss.item())
+		losses.append(loss.item())
 
-        # if move == 15:
-        #     print(game, y_pred.data[2], y0.data[2])
-        if len(losses) % 500 == 0:
-            plt.plot(range(len(losses)), losses)
-            plt.show()
+		if len(losses) % 100 == 0:
+			x_axis = range(len(losses))
+			plt.scatter(x_axis, losses, s=1)
+
+			# calc the trend line
+			z = np.polyfit(x_axis, losses, 1)
+			p = np.poly1d(z)
+			plt.plot(x_axis, p(x_axis), "r--")
+			plt.show()
+
+			print(game, 'games, slope:', z[0])

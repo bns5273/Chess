@@ -1,16 +1,27 @@
 from functions import *
 from sklearn import tree
-from joblib import dump
+from joblib import dump, load
 
-evaluations = []
-results = []
-wins = []
-losses = []
-draws = []
-for game, move, x, y0, y1 in fen_generator('sources/ccrl.pgn', 100):
-    evaluations.append([y0.item(), move])
-    results.append(y1.item())
+# converts centipawns to [loss, draw, win] probabilities
+class EvalNorm:
+	def __init__(self):
+		self.clf = load('sources/clf_model.joblib')
 
-clf = tree.DecisionTreeClassifier()
-clf.fit(evaluations, results)
-dump(clf, 'clf_model.joblib')
+	def get_y(self, centipawns, turn):
+		y = self.clf.predict_proba([[centipawns, turn]])
+		return torch.FloatTensor(y[0])
+
+
+if __name__ == '__main__':
+	evaluations = []
+	results = []
+	wins = []
+	losses = []
+	draws = []
+	for game, move, x, y0, y1 in fen_generator('sources/ccrl.pgn', 100):
+		evaluations.append([y0.item(), move])
+		results.append(y1.item())
+
+	clf = tree.DecisionTreeClassifier()
+	clf.fit(evaluations, results)
+	dump(clf, 'clf_model.joblib')
