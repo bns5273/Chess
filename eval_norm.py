@@ -1,6 +1,8 @@
 from functions import *
+import torch
 from sklearn import tree
 from joblib import dump, load
+
 
 # converts centipawns to [loss, draw, win] probabilities
 class EvalNorm:
@@ -15,13 +17,10 @@ class EvalNorm:
 if __name__ == '__main__':
 	evaluations = []
 	results = []
-	wins = []
-	losses = []
-	draws = []
-	for game, move, x, y0, y1 in fen_generator('sources/ccrl.pgn', 100):
-		evaluations.append([y0.item(), move])
-		results.append(y1.item())
+	for game, x, y0, y1 in fen_generator('sources/ccrl.pgn', 1):
+		print(y0.data)
+		print(y1.data)
 
-	clf = tree.DecisionTreeClassifier()
-	clf.fit(evaluations, results)
-	dump(clf, 'clf_model.joblib')
+	# clf = tree.DecisionTreeClassifier()
+	# clf.fit(evaluations, results)
+	# dump(clf, 'clf_model.joblib')

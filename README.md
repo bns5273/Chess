@@ -16,3 +16,4 @@ ideas:
 3. value of material by square, turn, in-play pieces
 4. guess the turn # from fen
 5. personalized training tool
+6. !! use evaluations as loss

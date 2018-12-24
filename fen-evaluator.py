@@ -1,7 +1,7 @@
 
 from functions import *
 import torch
-import torch.nn as nn
+from torch import nn
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -37,9 +37,9 @@ if __name__ == '__main__':
 	predictions = []
 	labels = []
 	losses = []
-	for game, x, y0, y1 in fen_generator('sources/ccrl.pgn', 1000):
+	for game, x0, x1, y0, y1 in fen_generator('sources/ccrl.pgn', 1000):
 		# training
-		y_pred = net(x)
+		y_pred = net(x1)
 		loss = loss_fn(y_pred, y0)
 		optimizer.zero_grad()
 		loss.backward()

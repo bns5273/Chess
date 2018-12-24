@@ -71,6 +71,7 @@ def fen_generator(filename, limit):
 						position += 1
 					elif re.findall('[-]', node.comment):
 						xs.append(get_x(node))
+						eval
 						ys.append(torch.FloatTensor([1, 0, 0]))
 						position += 1
 					elif re.findall('[+]', node.comment):
