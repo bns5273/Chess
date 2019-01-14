@@ -12,7 +12,10 @@ class EvalNorm:
 
 	def get_y(self, centipawns):
 		y = self.clf.predict_proba([[centipawns]])
-		return torch.FloatTensor(y[0])
+		if torch.cuda.is_available():
+			return torch.cuda.FloatTensor(y[0])
+		else:
+			return torch.FloatTensor(y[0])
 
 
 # no longer will work as the fen_generator is now built on this trained model!

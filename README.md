@@ -9,6 +9,8 @@ FEATURES:
 
 TODO:  
 1. automated rating estimation using stockfish binary?
+2. branching for evaluations
+3. pruning algorithm
 
 ideas:
 1. fit to engine evaluations

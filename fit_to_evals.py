@@ -1,19 +1,9 @@
-
+import chess
 from functions import *
 import torch
 from torch import nn
 import matplotlib.pyplot as plt
 import numpy as np
-
-
-# class for reshaping within sequential net
-class Reshape(nn.Module):
-	def __init__(self, *shape):
-		super(Reshape, self).__init__()
-		self.shape = shape
-
-	def forward(self, input):
-		return input.view(self.shape)
 
 
 if __name__ == '__main__':
@@ -23,26 +13,27 @@ if __name__ == '__main__':
 	# stockfish.uci()
 
 	net = nn.Sequential(
-		nn.BatchNorm1d(12),
+		# nn.BatchNorm1d(12),
 		Reshape(-1, 768),
 		nn.Linear(768, 768),
 		nn.ReLU(),
+		nn.Linear(768, 768),
+		nn.ReLU(),
 		nn.Linear(768, 3),
-		nn.Softmax(dim=0)
+		nn.Softmax(dim=1)
 	)
 
 	if torch.cuda.is_available():
 		net = net.cuda()
 
 	loss_fn = nn.MSELoss()
-	optimizer = torch.optim.Adam(net.parameters(), lr=0.0001)
+	optimizer = torch.optim.Adam(net.parameters(), lr=0.00001)
 
 	predictions = []
 	labels = []
 	losses = []
 
-	# game number, board tensor, evaluation float array, normalized evaluation, result
-	for game, x, y0, y1 in fen_generator('sources/ccrl.pgn', 1000):
+	for game, x, y0, y1 in fen_generator('sources/ccrl.pgn', 100):
 		# training
 		y_pred = net(x)
 		loss = loss_fn(y_pred, y0)
@@ -50,8 +41,10 @@ if __name__ == '__main__':
 		loss.backward()
 		optimizer.step()
 
-		losses.append(loss.item())
+		print(y0)
 
+		# graphing
+		losses.append(loss.item())
 		if len(losses) % 100 == 0:
 			x_axis = range(len(losses))
 			plt.scatter(x_axis, losses, s=1)
@@ -63,3 +56,17 @@ if __name__ == '__main__':
 			plt.show()
 
 			print(game, 'games, slope:', z[0])
+
+	# testing with starting position !!
+	board = chess.Board()
+	batch = get_x(board).unsqueeze(0)
+	output = net(batch)
+	print(output.data[0])
+
+	# checkmate for black
+	board.push_san('f4')
+	board.push_san('e5')
+	board.push_san('g4')
+	batch = get_x(board).unsqueeze(0)
+	output = net(batch)
+	print(output.data[0])
