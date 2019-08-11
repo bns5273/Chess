@@ -2,9 +2,10 @@ import re
 import torch
 from torch import nn
 import numpy as np
-import math
+#import math
 import chess.pgn as pgn
 from eval_norm import EvalNorm
+import math
 
 
 # class for reshaping within sequential net
@@ -19,12 +20,12 @@ class Reshape(nn.Module):
 
 # for use training eval_norm
 def get_result_simple(h):
-	if h['Result'] == '1-0':
-		return 2
-	elif h['Result'] == '0-1':
-		return 0
-	else:
+	if h == '1-0':
 		return 1
+	elif h == '0-1':
+		return -1
+	else:
+		return 0
 
 # for cross entropy loss function
 def get_result_ce(h):
@@ -39,11 +40,11 @@ def get_result_ce(h):
 # for mse loss function
 def get_result_mse(h):
 	if h['Result'] == '1-0':
-		return torch.cuda.FloatTensor([0, 0, 1])
+		return torch.FloatTensor([0, 0, 1])
 	elif h['Result'] == '0-1':
-		return torch.cuda.FloatTensor([1, 0, 0])
+		return torch.FloatTensor([1, 0, 0])
 	else:
-		return torch.cuda.FloatTensor([0, 1, 0])
+		return torch.FloatTensor([0, 1, 0])
 
 
 # creates an input tensor
@@ -73,13 +74,13 @@ def get_x(board):
 			bit_mask = bit_mask << 1
 
 	# if torch.cuda.is_available():
-	i = torch.cuda.LongTensor([team_pieces, rank_files])
-	v = torch.cuda.FloatTensor(np.ones(len(rank_files)))
-	return torch.cuda.sparse.FloatTensor(i, v, torch.Size([12, 64])).to_dense()
+	# i = torch.cuda.LongTensor([team_pieces, rank_files])
+	# v = torch.cuda.FloatTensor(np.ones(len(rank_files)))
+	# return torch.cuda.sparse.FloatTensor(i, v, torch.Size([12, 64])).to_dense()
 	# else:
-	# 	i = torch.LongTensor([team_pieces, rank_files])
-	# 	v = torch.FloatTensor(np.ones(len(rank_files)))
-	# 	return torch.sparse.FloatTensor(i, v, torch.Size([12, 64])).to_dense()
+	i = torch.LongTensor([team_pieces, rank_files])
+	v = torch.FloatTensor(np.ones(len(rank_files)))
+	return torch.sparse.FloatTensor(i, v, torch.Size([12, 64])).to_dense()
 
 
 # game #, move #, x (node), y0 (eval), y1 (result)
@@ -109,13 +110,15 @@ def fen_generator(filename, limit):
 						position += 1
 					elif re.findall('[-]', node.comment):       # black mate in ...
 						x0.append(get_x(node.board()))
-						eval = torch.cuda.FloatTensor([1, 0, 0])
+						# cuda
+						eval = torch.FloatTensor([1, 0, 0])
 						y0.append(eval)
 						y1.append(result)
 						position += 1
 					elif re.findall('[+]', node.comment):       # white mate in ...
 						x0.append(get_x(node.board()))
-						eval = torch.cuda.FloatTensor([0, 0, 1])
+						# cuda
+						eval = torch.FloatTensor([0, 0, 1])
 						y0.append(eval)
 						y1.append(result)
 						position += 1
@@ -123,7 +126,8 @@ def fen_generator(filename, limit):
 				move += .5
 			game += 1
 
-			yield game, torch.stack(x0), torch.stack(y0), torch.cuda.FloatTensor(y1)
+			# cuda
+			yield game, torch.stack(x0), torch.stack(y0), torch.FloatTensor(y1)
 
 		print(game, 'games', position, 'positions')
 

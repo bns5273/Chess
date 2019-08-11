@@ -9,9 +9,6 @@ import numpy as np
 if __name__ == '__main__':
 	torch.set_printoptions(threshold=10000, linewidth=1000, precision=4)
 
-	# stockfish = chess.uci.popen_engine('/usr/bin/stockfish')
-	# stockfish.uci()
-
 	net = nn.Sequential(
 		# nn.BatchNorm1d(12),
 		Reshape(-1, 768),
@@ -23,9 +20,6 @@ if __name__ == '__main__':
 		nn.Softmax(dim=1)
 	)
 
-	if torch.cuda.is_available():
-		net = net.cuda()
-
 	loss_fn = nn.MSELoss()
 	optimizer = torch.optim.Adam(net.parameters(), lr=0.00001)
 
@@ -33,15 +27,13 @@ if __name__ == '__main__':
 	labels = []
 	losses = []
 
-	for game, x, y0, y1 in fen_generator('sources/ccrl.pgn', 100):
+	for game, x, y0, y1 in fen_generator('sources/ccrl_stockfish.pgn', 100):
 		# training
 		y_pred = net(x)
 		loss = loss_fn(y_pred, y0)
 		optimizer.zero_grad()
 		loss.backward()
 		optimizer.step()
-
-		print(y0)
 
 		# graphing
 		losses.append(loss.item())
@@ -50,12 +42,9 @@ if __name__ == '__main__':
 			plt.scatter(x_axis, losses, s=1)
 
 			# calc the trend line
-			z = np.polyfit(x_axis, losses, 1)
-			p = np.poly1d(z)
-			plt.plot(x_axis, p(x_axis), "r--")
+			plt.plot(np.convolve(losses, np.ones((10,))/10, mode='valid'));
 			plt.show()
 
-			print(game, 'games, slope:', z[0])
 
 	# testing with starting position !!
 	board = chess.Board()
