@@ -11,14 +11,15 @@ import chess.pgn
 import chess.engine
 import torch
 import torch.nn
-from functions import get_x, get_result_mse, Reshape
+from functions import get_x, Reshape
 import matplotlib.pyplot as plt
 from joblib import load
 import numpy as np
+import datetime
 
 
 def select_move(y, turn):
-	factor = [[-1, 0, 1], [1, 0, -1]]
+	factor = [[0, .5, 1], [1, .5, 0]]
 	matrix = np.dot(y.data, factor[turn])
 	return np.argmax(matrix)
 
@@ -39,11 +40,11 @@ if __name__ == '__main__':
 	stockfish_normalizer = load('sources/new_cp_to_prob_model.joblib')
 
 	losses = []
-	for game in range(10050):
+	for game_round in range(10):
 		board = chess.Board()
 		while not board.is_game_over():
 			moves = list(board.generate_legal_moves())
-			response = stockfish.analyse(board, limit=chess.engine.Limit(depth=5), multipv=len(moves))
+			response = stockfish.analyse(board, limit=chess.engine.Limit(depth=1), multipv=len(moves))
 			
 			# create stack tensors
 			x = []
@@ -66,6 +67,10 @@ if __name__ == '__main__':
 			board.push(response[move_index]['pv'][0])
 			# print(board, end='\n\n')
 
+			# stockfish makes move
+			# response = stockfish.play(board, chess.engine.Limit(depth=1))
+			# board.push(response.move)
+
 			# back propogation
 			loss = loss_fn(y_pred, y)
 			optimizer.zero_grad()
@@ -74,18 +79,22 @@ if __name__ == '__main__':
 
 			# graphing
 			losses.append(loss.item())
-			if len(losses) % 100 == 0:
-				x_axis = range(len(losses))
-				plt.scatter(x_axis, losses, s=1)
-
-				# calc the trend line
-				plt.plot(np.convolve(losses, np.ones((50,))/50, mode='valid'), color='--r');
-				# plt.show()	# main thread is not in main loop error
 
 		game = chess.pgn.Game.from_board(board)
+		now = datetime.datetime.now()
+		game.headers['Date'] = now.strftime("%Y-%m-%d")
+		game.headers['Time'] = now.strftime("%H:%M:%S")
+		game.headers['Round'] = game_round
+		game.headers['White'] = 'fit_to_engine'
+		game.headers['Black'] = 'fit_to_engine'
+
 		print(game, file=open('sources/games.pgn', 'a'), end='\n\n')
 
-	plt.show()
-
+		# plot performance
+		x_axis = range(len(losses))
+		plt.scatter(x_axis, losses, s=1)
+		plt.plot(np.convolve(losses, np.ones((50,))/50, mode='valid'), color='red', linestyle='--');
+	
 	stockfish.close()
+	plt.show()
 	exit()
